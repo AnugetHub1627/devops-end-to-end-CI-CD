@@ -310,27 +310,3 @@ resource "aws_iam_role_policy_attachment" "admin_access" {
   role       = aws_iam_role.github_actions_role.name
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess" 
 }
-# ==============================================================================
-# 8. deploy-to-eks
-# ==============================================================================
-    needs: update-manifest # Executes immediately after GitOps manifest update is pushed
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Configure AWS Credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ap-south-1 # Change to your EKS subnets location
-      - name: Refresh Local Kubeconfig
-        run: |
-          aws eks update-kubeconfig --region us-east-1 --name ci-cd-EKS
-
-      - name: Stream Manifest Layout to EKS Cluster Nodes
-        run: |
-          kubectl apply -f k8s/deployment.yaml
-          kubectl apply -f k8s/service.yaml
-
-
