@@ -4,6 +4,11 @@ on:
   push:
     branches: [ "main" ]
 
+# Mandatory at the workflow root level to allow safe OIDC authentication with AWS
+permissions:
+  id-token: write
+  contents: write
+
 jobs:
   test-and-scan:
     runs-on: ubuntu-latest
@@ -47,7 +52,7 @@ jobs:
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./app  # FIXED: Point to your actual subfolder directory containing the Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/flask-devops-app:${{ github.sha }}
 
@@ -62,9 +67,32 @@ jobs:
 
       - name: Update Kubernetes Image Tag
         run: |
-          sed -i 's|image: .*|image: '${{ secrets.DOCKERHUB_USERNAME }}'/flask-devops-app:'${{ github.sha }}'|g' k8s/deployment.yml
+          # FIXED: Swapped out .yml for .yaml to properly match standard manifest pathing
+          sed -i 's|image: .*|image: '${{ secrets.DOCKERHUB_USERNAME }}'/flask-devops-app:'${{ github.sha }}'|g' k8s/deployment.yaml
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git add k8s/deployment.yml
+          git add k8s/deployment.yaml
           git commit -m "Bump image version to ${{ github.sha }} [skip ci]"
           git push
+
+  deploy-to-eks:
+    needs: update-manifest # Executes sequentially after the manifest code update pushes to Git
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }} # Created securely via your updated main.tf output
+          aws-region: ap-south-1 # Matches your exact infrastructure zone from code
+
+      - name: Refresh Local Kubeconfig
+        run: |
+          aws eks update-kubeconfig --region ap-south-1 --name ci-cd-EKS # Explicitly targets your cluster name
+
+      - name: Deploy Manifests to AWS EKS Cluster
+        run: |
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
