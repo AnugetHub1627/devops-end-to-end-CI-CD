@@ -289,7 +289,10 @@ resource "aws_eks_node_group" "nodes" {
     aws_iam_role_policy_attachment.eks_registry,
   ]
 }
-# 1. Instruct AWS to trust GitHub Actions explicitly via code
+# ==============================================================================
+# 5. Instruct AWS to trust GitHub Actions explicitly via code
+# ==============================================================================
+
 resource "aws_iam_openid_connect_provider" "github" {
   url             = "https://githubusercontent.com"
   client_id_list  = ["://amazonaws.com"]
@@ -297,8 +300,9 @@ resource "aws_iam_openid_connect_provider" "github" {
   # Official verified GitHub root trust security thumbprint
   thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"] 
 }
-
-# 2. Automatically provision the exact execution role your pipeline requires
+# ==============================================================================
+# 6. Automatically provision the exact execution role your pipeline requires
+# ==============================================================================
 resource "aws_iam_role" "github_actions_role" {
   name = "GitHubActions-EKS-Deploy-Role"
 
@@ -324,13 +328,16 @@ resource "aws_iam_role" "github_actions_role" {
     ]
   })
 }
-
-# 3. Attach administrative permissions directly to your execution role
+# ==============================================================================
+# 7. Attach administrative permissions directly to your execution role
+# ==============================================================================
 resource "aws_iam_role_policy_attachment" "admin_access" {
   role       = aws_iam_role.github_actions_role.name
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess" 
 }
-deploy-to-eks:
+# ==============================================================================
+# 8. deploy-to-eks
+# ==============================================================================
     needs: update-manifest # Executes immediately after GitOps manifest update is pushed
     runs-on: ubuntu-latest
     steps:
