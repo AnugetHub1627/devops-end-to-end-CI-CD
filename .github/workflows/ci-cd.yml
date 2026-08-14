@@ -16,6 +16,8 @@ jobs:
   provision-infra:
     name: "Infrastructure Automation: Terraform Apply"
     runs-on: ubuntu-latest
+    outputs:
+      sonar_url: ${{ steps.save-outputs.outputs.sonar_host }}
     steps:
       - name: Checkout Code Architecture
         uses: actions/checkout@v4
@@ -52,7 +54,7 @@ jobs:
         run: |
           # Fetch the public IP directly from your output.tf mapping
           EC2_IP=$(terraform output -raw sonarqube_server_ip)
-          echo "SONAR_HOST=http://$EC2_IP:9000" >> $GITHUB_ENV
+          echo "sonar_host=http://$EC2_IP:9000" >> $GITHUB_OUTPUT
         working-directory: ./terraform
       - name: Wait for SonarQube Server to boot
         run: sleep 90  #   
@@ -83,9 +85,9 @@ jobs:
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v2
         env:
-          SONAR_HOST_URL: ${{ env.SONAR_HOST }}
+          SONAR_HOST_URL: ${{ needs.provision-infra.outputs.sonar_url }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
+ 
   build-and-push:
     name: "Artifact Storage: Build & Push Docker Image"
     needs: test-and-scan
