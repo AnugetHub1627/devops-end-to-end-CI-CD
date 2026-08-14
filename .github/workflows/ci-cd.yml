@@ -30,16 +30,20 @@ jobs:
 
       - name: Initialize Backend Storage Workspaces
         run: terraform init   
-
+        working-directory: ./terraform
+        
       - name: Check Code Style Compliance
         run: terraform fmt -check
+        working-directory: ./terraform
 
       - name: Validate System Configuration Files
         run: terraform validate
-
+        working-directory: ./terraform
+        
       - name: Execute Live Deployment Code
         run: terraform apply -auto-approve -input=false
-
+        working-directory: ./terraform
+        
   test-and-scan:
     name: "Continuous Integration: Test & Code Scan"
     needs: provision-infra # FIXED: Correctly targets the completed infrastructure job node block above
