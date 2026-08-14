@@ -6,7 +6,7 @@ on:
       - main 
     paths:
       - '.github/workflows/ci-cd.yml'
-
+  workflow_dispatch:
 # Mandatory at the workflow root level to allow safe OIDC authentication with AWS
 permissions:
   id-token: write
@@ -151,3 +151,33 @@ jobs:
         run: |
           kubectl apply -f k8s/deployment.yml
           kubectl apply -f k8s/service.yml
+  destroy-infra:
+    name: "Infrastructure Destruction: Clean Up AWS"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Architecture
+        uses: actions/checkout@v4
+
+      - name: Authenticate with AWS via Access Keys
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      - name: Install Specific Terraform CLI Version
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.0
+
+      - name: Initialize Backend Storage Workspaces
+        run: terraform init   
+        working-directory: ./terraform
+
+      - name: Destroy All AWS Resources
+        run: terraform destroy -auto-approve
+        working-directory: ./terraform
+
+          
+
+          
