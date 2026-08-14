@@ -2,7 +2,10 @@ name: CI/CD Devops Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main 
+    paths:
+      - '.github/workflows/ci-cd.yml'
 
 # Mandatory at the workflow root level to allow safe OIDC authentication with AWS
 permissions:
