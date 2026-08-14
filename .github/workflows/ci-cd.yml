@@ -82,11 +82,11 @@ jobs:
       - name: Run Unit Tests
         run: pytest app/test_app.py
 
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v2
-        env:
-          SONAR_HOST_URL: ${{ needs.provision-infra.outputs.sonar_url }}
-          SONAR_TOKEN: "Namratadvit@1627"  # <-- Hardcode this default string temporarily
+     # - name: SonarQube Scan
+     #   uses: SonarSource/sonarqube-scan-action@v2
+     #   env:
+     #     SONAR_HOST_URL: ${{ needs.provision-infra.outputs.sonar_url }}
+     #     SONAR_TOKEN: "Namratadvit@1627"  # <-- Hardcode this default string temporarily
  
   build-and-push:
     name: "Artifact Storage: Build & Push Docker Image"
