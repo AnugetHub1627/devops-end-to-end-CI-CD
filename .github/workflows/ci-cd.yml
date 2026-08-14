@@ -10,7 +10,7 @@ on:
 # Mandatory at the workflow root level to allow safe OIDC authentication with AWS
 permissions:
   id-token: write
-  contents: write
+  contents: read
 
 jobs:
   provision-infra:
