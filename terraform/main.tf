@@ -178,7 +178,7 @@ resource "aws_security_group" "ci-cd_sg" {
 
 resource "aws_instance" "ci-cd_host" {
   ami                    = var.cicd_host_ami
-  instance_type          = var.ci-cd-ec2-type
+  instance_type          = var.cicd_ec2_type
   subnet_id              = aws_subnet.ci-cd-pub1a.id
   vpc_security_group_ids = [aws_security_group.ci-cd_sg.id]
   key_name               = var.key_name
