@@ -46,6 +46,17 @@ jobs:
       - name: Execute Live Deployment Code
         run: terraform apply -auto-approve -input=false
         working-directory: ./terraform
+      
+      - name: Capture Infrastructure Outputs
+        id: infra-vars
+        run: |
+          # Fetch the public IP directly from your output.tf mapping
+          EC2_IP=$(terraform output -raw sonarqube_server_ip)
+          echo "SONAR_HOST=http://$EC2_IP:9000" >> $GITHUB_ENV
+        working-directory: ./terraform
+      - name: Wait for SonarQube Server to boot
+        run: sleep 90  #   
+  
         
   test-and-scan:
     name: "Continuous Integration: Test & Code Scan"
@@ -72,8 +83,8 @@ jobs:
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v2
         env:
+          SONAR_HOST_URL: ${{ env.SONAR_HOST }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
   build-and-push:
     name: "Artifact Storage: Build & Push Docker Image"
