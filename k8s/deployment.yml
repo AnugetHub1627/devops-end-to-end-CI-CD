@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: flask-app
-        image: anummdocker/flask-devops-app:669959d509edcbcb9c1cb2cbfbdf52276843e61c
+        image: anummdocker/flask-devops-app:b926757f4980bcf2f04d9fb4bb3b09f53d56d1fa
         ports:
         - containerPort: 5000
 
