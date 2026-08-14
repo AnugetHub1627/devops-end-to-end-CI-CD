@@ -22,6 +22,7 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ap-south-1
+          audience: https://github.com
 
       - name: Install Specific Terraform CLI Version
         uses: hashicorp/setup-terraform@v3
