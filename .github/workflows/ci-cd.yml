@@ -50,7 +50,7 @@ jobs:
         working-directory: ./terraform
       
       - name: Capture Infrastructure Outputs
-        id: infra-vars
+        id: save-outputs # FIXED: Aligned step ID to match the outputs block declaration above
         run: |
           # Fetch the public IP directly from your output.tf mapping
           EC2_IP=$(terraform output -raw sonarqube_server_ip)
