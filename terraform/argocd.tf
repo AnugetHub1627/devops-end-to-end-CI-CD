@@ -19,7 +19,7 @@ data "aws_eks_cluster_auth" "cluster" {
 # 3. Deploy the Argo CD Helm release
 resource "helm_release" "argocd" {
   name             = "argocd"
-  repository       = "https://github.io"
+  repository       = "https://https://github.com/AnugetHub1627/devops-end-to-end-CI-CD.git"
   chart            = "argo-cd"
   version          = "7.3.11"
   namespace        = "argocd"
