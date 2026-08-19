@@ -1,6 +1,6 @@
-# Add helm and kubernetes provider 
 provider "helm" {
-  kubernetes {
+  # FIXED: Added the equals sign (=) to comply with modern Helm provider syntax rules
+  kubernetes = {
     host                   = data.aws_eks_cluster.cluster.endpoint
     cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority.data)
     token                  = data.aws_eks_cluster_auth.cluster.token
@@ -9,17 +9,17 @@ provider "helm" {
 
 # Hardcoded exact cluster name here so Terraform can look it up in AWS
 data "aws_eks_cluster" "cluster" {
-  name = "ci-cd-EKS" 
+  name = "ci-cd-EKS"
 }
 
 data "aws_eks_cluster_auth" "cluster" {
   name = "ci-cd-EKS"
 }
 
-# 3. Deploy the Argo CD Helm release
+# Deploy the Argo CD Helm release
 resource "helm_release" "argocd" {
   name             = "argocd"
-  repository       = "https://https://github.com/AnugetHub1627/devops-end-to-end-CI-CD.git"
+  repository       = "https://github.io"
   chart            = "argo-cd"
   version          = "7.3.11"
   namespace        = "argocd"
