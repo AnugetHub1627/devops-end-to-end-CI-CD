@@ -24,7 +24,10 @@ resource "helm_release" "argocd" {
   namespace        = "argocd"
   create_namespace = true
 
-  # FIXED: Converted the block format parameter into the required attribute map array
+  depends_on = [
+    data.aws_eks_cluster.cluster,
+    data.aws_eks_cluster_auth.cluster
+  ]
   set = [
     {
       name  = "server.service.type"
