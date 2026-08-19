@@ -6,17 +6,31 @@ provider "helm" {
   }
 }
 
-# Safely lookup EKS parameters using the cluster's explicit name string
+# Clean data blocks without nested resource parameters
 data "aws_eks_cluster" "cluster" {
   name = "ci-cd-EKS"
 }
+
 data "aws_eks_cluster_auth" "cluster" {
   name = "ci-cd-EKS"
 }
-depends_on = [
+
+# The parameters belong strictly inside the resource block below
+resource "helm_release" "argocd" {
+  name             = "argocd"
+  repository       = "https://github.io"
+  chart            = "argo-cd"
+  version          = "7.3.11"
+  namespace        = "argocd"
+  create_namespace = true
+
+  # Resource wait condition
+  depends_on = [
     data.aws_eks_cluster.cluster,
     data.aws_eks_cluster_auth.cluster
   ]
+
+  # Configuration array maps
   set = [
     {
       name  = "server.service.type"
