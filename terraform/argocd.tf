@@ -1,7 +1,6 @@
 provider "helm" {
   kubernetes = {
     host                   = data.aws_eks_cluster.cluster.endpoint
-    # FIXED: Added [0] index accessor to extract the data key out of the object list block
     cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
     token                  = data.aws_eks_cluster_auth.cluster.token
   }
@@ -19,14 +18,17 @@ data "aws_eks_cluster_auth" "cluster" {
 # Deploy the Argo CD Helm release
 resource "helm_release" "argocd" {
   name             = "argocd"
-  repository       = "https://github.io"
+  repository       = "https://github.com/AnugetHub1627/devops-end-to-end-CI-CD.git"
   chart            = "argo-cd"
   version          = "7.3.11"
   namespace        = "argocd"
   create_namespace = true
 
-  set {
-    name  = "server.service.type"
-    value = "ClusterIP"
-  }
+  # FIXED: Converted the block format parameter into the required attribute map array
+  set = [
+    {
+      name  = "server.service.type"
+      value = "ClusterIP"
+    }
+  ]
 }
