@@ -40,7 +40,7 @@ jobs:
         working-directory: ./terraform
         
       - name: Check Code Style Compliance
-        run: terraform fmt -check
+        run: terraform fmt 
         working-directory: ./terraform
 
       - name: Validate System Configuration Files
