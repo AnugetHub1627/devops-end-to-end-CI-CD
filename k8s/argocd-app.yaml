@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: flask-devops-application
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    # URL to your monorepo
+    repoURL: 'https://github.com/AnugetHub1627/devops-end-to-end-CI-CD.git'
+    targetRevision: HEAD
+    # Monitors and deploys only manifests contained within your k8s/ folder
+    path: k8s
+  destination:
+    server: 'https://default.svc'
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true      # Cleans up resources deleted from Git
+      selfHeal: true   # Overwrites manual changes to prevent configuration drift
+    syncOptions:
+      - CreateNamespace=true

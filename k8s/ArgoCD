@@ -1,7 +1,0 @@
-# Register your repository application inside ArgoCD
-argocd app create flask-gitops-app \
-  --repo https://github.com \
-  --path k8s \
-  --dest server https://default.svc \
-  --dest-namespace default \
-  --sync-policy automated
