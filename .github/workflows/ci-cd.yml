@@ -5,8 +5,9 @@ on:
     branches:
       - main 
     paths:
-      - '.github/workflows/ci-cd.yml'
+      - 'app/**'
   workflow_dispatch:
+
 # Mandatory at the workflow root level to allow safe OIDC authentication with AWS
 permissions:
   id-token: write
@@ -28,6 +29,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
+
       - name: Install Specific Terraform CLI Version
         uses: hashicorp/setup-terraform@v3
         with:
@@ -56,10 +58,10 @@ jobs:
           EC2_IP=$(terraform output -raw sonarqube_server_ip)
           echo "sonar_host=http://$EC2_IP:9000" >> $GITHUB_OUTPUT
         working-directory: ./terraform
+
       - name: Wait for SonarQube Server to boot
-        run: sleep 90  #   
+        run: sleep 90  
   
-        
   test-and-scan:
     name: "Continuous Integration: Test & Code Scan"
     needs: provision-infra # FIXED: Correctly targets the completed infrastructure job node block above
@@ -121,62 +123,47 @@ jobs:
 
       - name: Update Kubernetes Image Tag
         run: |
-          sed -i 's|image: .*|image: '${{ secrets.DOCKERHUB_USERNAME }}'/flask-devops-app:'${{ github.sha }}'|g' k8s/deployment.yml
-          git config --global user.name "github-actions"
-          git config --global user.email "actions@github.com"
+          # Outer double quotes allow GitHub Secrets and variables to evaluate seamlessly
+          sed -i "s|image: .*|image: ${{ secrets.DOCKERHUB_USERNAME }}/flask-devops-app:${{ github.sha }}|g" k8s/deployment.yml
+            
+          # Use standard GitHub bot identity
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@://github.com"
           git add k8s/deployment.yml
-          git commit -m "Bump image version to ${{ github.sha }} [skip ci]"
-          git push
+            
+          # Commits only if a real file change occurs to prevent workflow run failures
+          git diff-index --quiet HEAD || git commit -m "Bump image version to ${{ github.sha }} [skip ci]"
+          git push origin HEAD
 
-  deploy-to-eks:
-    name: "Continuous Deployment: Provision onto EKS Cluster"
-    needs: update-manifest
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials (Access Key and secret key)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
+  
 
-      - name: Refresh Local Kubeconfig
-        run: |
-          aws eks update-kubeconfig --region ap-south-1 --name ci-cd-EKS
+ # destroy-infra:
+ #   name: "Infrastructure Destruction: Clean Up AWS"
+ #   runs-on: ubuntu-latest
+ #   steps:
+ #     - name: Checkout Code Architecture
+ #       uses: actions/checkout@v4
+ #
+ #    - name: Authenticate with AWS via Access Keys
+ #       uses: aws-actions/configure-aws-credentials@v4
+ #       with:
+ #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+ #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+ #         aws-region: ap-south-1
 
-      - name: Deploy Manifests to AWS EKS Cluster
-        run: |
-          kubectl apply -f k8s/deployment.yml
-          kubectl apply -f k8s/service.yml
-  destroy-infra:
-    name: "Infrastructure Destruction: Clean Up AWS"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code Architecture
-        uses: actions/checkout@v4
+#      - name: Install Specific Terraform CLI Version
+#        uses: hashicorp/setup-terraform@v3
+#        with:
+#          terraform_version: 1.8.0
 
-      - name: Authenticate with AWS via Access Keys
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
+#      - name: Initialize Backend Storage Workspaces
+#        run: terraform init   
+#        working-directory: ./terraform
 
-      - name: Install Specific Terraform CLI Version
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.8.0
-
-      - name: Initialize Backend Storage Workspaces
-        run: terraform init   
-        working-directory: ./terraform
-
-      - name: Destroy All AWS Resources
-        run: terraform destroy -auto-approve
-        working-directory: ./terraform
+#      - name: Destroy All AWS Resources
+#        run: terraform destroy -auto-approve
+#        working-directory: ./terraform
 
           
 
