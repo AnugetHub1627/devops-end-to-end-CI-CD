@@ -34,7 +34,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.8.0
-
+          terraform_wrapper: false
       - name: Initialize Backend Storage Workspaces
         run: terraform init   
         working-directory: ./terraform
