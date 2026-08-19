@@ -1,18 +1,16 @@
 provider "helm" {
   kubernetes = {
-    host                   = data.aws_eks_cluster.cluster.endpoint
-    cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
+    # FIXED: Replaced data block paths with direct resource dependencies
+    host                   = aws_eks_cluster.this.endpoint
+    cluster_ca_certificate = base64decode(aws_eks_cluster.this.certificate_authority[0].data)
     token                  = data.aws_eks_cluster_auth.cluster.token
   }
 }
 
-# Hardcoded exact cluster name here so Terraform can look it up in AWS
-data "aws_eks_cluster" "cluster" {
-  name = "ci-cd-EKS"
-}
 
+# Hardcoded exact cluster name here so Terraform can look it up in AWS
 data "aws_eks_cluster_auth" "cluster" {
-  name = "ci-cd-EKS"
+  name = aws_eks_cluster.this.name
 }
 
 # Deploy the Argo CD Helm release
