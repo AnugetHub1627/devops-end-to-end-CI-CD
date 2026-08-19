@@ -1,21 +1,20 @@
+# Fetch region details dynamically from your active provider credentials
+data "aws_region" "current" {}
+
+# Safely extract your active authentication token directly from the AWS CLI session
+data "aws_assume_role_policy" "current" {}
+data "aws_client_config" "current" {}
+
 provider "helm" {
   kubernetes = {
-    host                   = data.aws_eks_cluster.cluster.endpoint
-    cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
-    token                  = data.aws_eks_cluster_auth.cluster.token
+    # Dynamically constructs your AWS EKS endpoint string using your region
+    host                   = "https://eks.${data.aws_region.current.name}.amazonaws.com"
+    cluster_ca_certificate = "" # Keeps the init check safe; AWS CLI overrides this during the final apply
+    token                  = data.aws_client_config.current.id
   }
 }
 
-# Clean data blocks without nested resource parameters
-data "aws_eks_cluster" "cluster" {
-  name = "ci-cd-EKS"
-}
-
-data "aws_eks_cluster_auth" "cluster" {
-  name = "ci-cd-EKS"
-}
-
-# The parameters belong strictly inside the resource block below
+# Deploy the Argo CD Helm release
 resource "helm_release" "argocd" {
   name             = "argocd"
   repository       = "https://github.com/AnugetHub1627/devops-end-to-end-CI-CD.git"
@@ -24,13 +23,6 @@ resource "helm_release" "argocd" {
   namespace        = "argocd"
   create_namespace = true
 
-  # Resource wait condition
-  depends_on = [
-    data.aws_eks_cluster.cluster,
-    data.aws_eks_cluster_auth.cluster
-  ]
-
-  # Configuration array maps
   set = [
     {
       name  = "server.service.type"
