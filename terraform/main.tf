@@ -316,7 +316,7 @@ resource "aws_eks_node_group" "nodes" {
 #  name = "ci-cd-EKS"
 #}
 data "aws_eks_cluster_auth" "eks" {
-  name = data.aws_eks_cluster.ci-cd-EKS.name
+  name = aws_eks_cluster.ci-cd-EKS.name
 }
 # ==========================================
 # 3. HELM PROVIDER BLOCK
