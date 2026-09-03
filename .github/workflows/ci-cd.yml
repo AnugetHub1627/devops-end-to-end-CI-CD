@@ -1,4 +1,4 @@
-name: CI/CD Devops Pipeline......
+name: CI/CD Devops Pipeline
 
 on:
   push:
