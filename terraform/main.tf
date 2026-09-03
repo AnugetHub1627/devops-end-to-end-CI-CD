@@ -3,16 +3,20 @@ provider "aws" {
 }
 
 terraform {
+  required_version = ">= 1.5.0" # Ensures compatibility with modern EKS configurations
+  
   required_providers {
     aws = {
-      source = "hashicorp/aws"
+      source  = "hashicorp/aws"
+      version = "~> 5.0" # RECOMMENDED: Locks to the major v5 series to prevent breaking pipeline changes
     }
     helm = {
       source  = "hashicorp/helm"
-      version = "~> 2.0" # Keeps syntax backward compatible
+      version = "~> 2.0" 
     }
   }
 }
+
 # ==============================================================================
 # 1. NETWORK TOPOLOGY (Multi-AZ VPC for EKS Integration)
 # ==============================================================================
