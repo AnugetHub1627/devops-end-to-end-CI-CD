@@ -312,8 +312,11 @@ resource "aws_eks_node_group" "nodes" {
 # 2. DYNAMIC AUTHENTICATION DATA SOURCE
 # ==========================================
 # Resolves standard authentication tokens dynamically once the cluster is live
+data "aws_eks_cluster" "eks" {
+  name = "ci-cd-EKS"
+}
 data "aws_eks_cluster_auth" "eks" {
-  name = aws_eks_cluster.eks.name
+  name = data.aws_eks_cluster.eks.name
 }
 # ==========================================
 # 3. HELM PROVIDER BLOCK
