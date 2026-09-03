@@ -7,6 +7,12 @@ terraform {
     aws = {
       source = "hashicorp/aws"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.0" # Keeps syntax backward compatible
+    }
+  }
+}
   }
 }
 
@@ -300,4 +306,41 @@ resource "aws_eks_node_group" "nodes" {
     aws_iam_role_policy_attachment.eks_cni,
     aws_iam_role_policy_attachment.eks_registry,
   ]
+}
+# ==========================================
+# 2. DYNAMIC AUTHENTICATION DATA SOURCE
+# ==========================================
+# Resolves standard authentication tokens dynamically once the cluster is live
+data "aws_eks_cluster_auth" "eks" {
+  name = aws_eks_cluster.eks.name
+}
+# ==========================================
+# 3. HELM PROVIDER BLOCK
+# ==========================================
+provider "helm" {
+  kubernetes {
+    host                   = aws_eks_cluster.eks.endpoint
+    cluster_ca_certificate = base64decode(aws_eks_cluster.eks.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.eks.token
+  }
+}
+# ==========================================
+# 4. ARGOCD HELM INSTALLATION FUNCTION
+# ==========================================
+resource "helm_release" "argocd" {
+  name             = "argocd"
+  repository       = "https://argoproj.github.io/argo-helm"
+  chart            = "argo-cd"
+  version          = "7.4.4" # Pinning a modern stable chart version
+  namespace        = "argocd"
+  create_namespace = true
+
+  # Changes the ArgoCD server layout to expose a public LoadBalancer 
+  # so you can easily access the UI dashboard from outside the VPC
+  set {
+    name  = "server.service.type"
+    value = "LoadBalancer"
+  }
+  # Protects against race conditions: waits for node availability before applying
+  depends_on = [aws_eks_node_group.nodes] 
 }
