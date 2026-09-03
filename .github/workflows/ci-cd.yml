@@ -50,6 +50,20 @@ jobs:
       - name: Execute Live Deployment Code
         run: terraform apply -auto-approve -input=false
         working-directory: ./terraform
+
+      - name: Post-Failure Cluster Deep Dive
+        if: failure()  # Will only execute if the step above times out again
+        run: |
+          # 1. Update runner kubeconfig
+          aws eks update-kubeconfig --region ap-south-1 --name ci-cd-EKS
+        
+          echo "=== 1. VERIFY NODE REGISTRATION ==="
+          kubectl get nodes --show-labels || echo "Nodes are completely unreachable."  
+          echo "=== 2. INSPECT POD STUCK STATUS ==="
+          kubectl get pods -n argocd -o wide || echo "No pods deployed."
+        
+          echo "=== 3. COLLECT DETAILED SCHEDULING FAILURE EVENTS ==="
+          kubectl get events -n argocd --sort-by='.metadata.creationTimestamp' | tail -n 25
       
       - name: Capture Infrastructure Outputs
         id: save-outputs # FIXED: Aligned step ID to match the outputs block declaration above
@@ -135,21 +149,7 @@ jobs:
           git diff-index --quiet HEAD || git commit -m "Bump image version to ${{ github.sha }} [skip ci]"
           git push origin HEAD
           
-      - name: Post-Failure EKS Diagnosis
-        if: failure()
-        run: |
-          # Connect to the cluster
-          aws eks update-kubeconfig --region ap-south-1 --name ci-cd-EKS
-    
-          echo "=== Checking Node Health ==="
-          kubectl get nodes
-    
-          echo "=== Checking Pod Allocation & Errors ==="
-          kubectl get pods -n argocd -o wide
-    
-          echo "=== Checking Cluster Events for Errors ==="
-          kubectl get events -n argocd --sort-by='.metadata.creationTimestamp'
-
+      
 
   
 
