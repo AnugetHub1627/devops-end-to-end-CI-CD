@@ -315,9 +315,9 @@ resource "aws_eks_node_group" "nodes" {
 #data "aws_eks_cluster" "eks" {
 #  name = "ci-cd-EKS"
 #}
-data "aws_eks_cluster_auth" "eks" {
-  name = aws_eks_cluster.ci-cd-EKS.name
-}
+#data "aws_eks_cluster_auth" "eks" {
+#  name = aws_eks_cluster.ci-cd-EKS.name
+#}
 # ==========================================
 # 3. HELM PROVIDER BLOCK
 # ==========================================
@@ -325,7 +325,12 @@ provider "helm" {
   kubernetes {
     host                   = aws_eks_cluster.ci-cd-EKS.endpoint
     cluster_ca_certificate = base64decode(aws_eks_cluster.ci-cd-EKS.certificate_authority[0].data)
-    token                  = data.aws_eks_cluster_auth.eks.token
+    #token                  = data.aws_eks_cluster_auth.eks.token
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.ci-cd-EKS.name]
+      command     = "aws"
+    }
   }
 }
 # ==========================================
