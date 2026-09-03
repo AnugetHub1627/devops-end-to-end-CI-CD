@@ -338,6 +338,8 @@ resource "helm_release" "argocd" {
   version          = "7.4.4" # Pinning a modern stable chart version
   namespace        = "argocd"
   create_namespace = true
+  timeout          = 900   # I got error context deadline exceeded so increased helm timeout limit  
+
 
   # Changes the ArgoCD server layout to expose a public LoadBalancer 
   # so you can easily access the UI dashboard from outside the VPC
