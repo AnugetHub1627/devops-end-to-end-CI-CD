@@ -48,7 +48,7 @@ resource "aws_subnet" "ci-cd-pub1a" {
 
   tags = {
     Name                                       = var.subpub1a_name
-    "kubernetes.io/cluster/devops-eks-cluster" = "shared"
+    "kubernetes.io/cluster/ci-cd-EKS" = "shared"
     "kubernetes.io/role/elb"                   = "1"
   }
 }
@@ -61,7 +61,7 @@ resource "aws_subnet" "ci-cd-pub1b" {
 
   tags = {
     Name                                       = var.subpub1b_name
-    "kubernetes.io/cluster/devops-eks-cluster" = "shared"
+    "kubernetes.io/cluster/ci-cd-EKS" = "shared"
     "kubernetes.io/role/elb"                   = "1"
   }
 }
@@ -74,7 +74,7 @@ resource "aws_subnet" "ci-cd-pvt1a" {
 
   tags = {
     Name                                       = var.subpvt1a_name
-    "kubernetes.io/cluster/devops-eks-cluster" = "shared"
+    "kubernetes.io/cluster/ci-cd-EKS" = "shared"
     "kubernetes.io/role/internal-elb"          = "1"
   }
 }
@@ -86,7 +86,7 @@ resource "aws_subnet" "ci-cd-pvt1b" {
 
   tags = {
     Name                                       = var.subpvt1b_name
-    "kubernetes.io/cluster/devops-eks-cluster" = "shared"
+    "kubernetes.io/cluster/ci-cd-EKS" = "shared"
     "kubernetes.io/role/internal-elb"          = "1"
   }
 }
