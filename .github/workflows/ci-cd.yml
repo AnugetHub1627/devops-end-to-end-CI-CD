@@ -134,6 +134,21 @@ jobs:
           # Commits only if a real file change occurs to prevent workflow run failures
           git diff-index --quiet HEAD || git commit -m "Bump image version to ${{ github.sha }} [skip ci]"
           git push origin HEAD
+          
+      - name: Post-Failure EKS Diagnosis
+        if: failure()
+        run: |
+          # Connect to the cluster
+          aws eks update-kubeconfig --region ap-south-1 --name ci-cd-EKS
+    
+          echo "=== Checking Node Health ==="
+          kubectl get nodes
+    
+          echo "=== Checking Pod Allocation & Errors ==="
+          kubectl get pods -n argocd -o wide
+    
+          echo "=== Checking Cluster Events for Errors ==="
+          kubectl get events -n argocd --sort-by='.metadata.creationTimestamp'
 
 
   
