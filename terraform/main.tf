@@ -346,7 +346,12 @@ resource "helm_release" "argocd" {
   create_namespace = true
   timeout          = 900   # I got error context deadline exceeded so increased helm timeout limit  
 
-
+  syncPolicy = {
+        automated = {
+          prune    = true
+          selfHeal = true
+        }
+      }
   # Changes the ArgoCD server layout to expose a public LoadBalancer 
   # so you can easily access the UI dashboard from outside the VPC
   set {
