@@ -38,13 +38,13 @@ jobs:
       - name: Initialize Backend Storage Workspaces
         run: terraform init   
         working-directory: ./terraform
-      - name: Purge Corrupted ArgoCD Leftovers
-        run: |
+      #- name: Purge Corrupted ArgoCD Leftovers
+      #  run: |
           # 1. Connect the GitHub Actions cloud runner to your cluster
-          aws eks update-kubeconfig --region ap-south-1 --name ci-cd-EKS || echo "Cluster doesn't exist yet, skipping cleanup."
+          #aws eks update-kubeconfig --region ap-south-1 --name ci-cd-EKS || echo "Cluster doesn't exist yet, skipping cleanup."
         
           # 2. Force delete the corrupted namespace and avoid hanging
-          kubectl delete namespace argocd --ignore-not-found=true --timeout=60s || echo "Namespace cleanup timed out or already clear."  
+          #kubectl delete namespace argocd --ignore-not-found=true --timeout=60s || echo "Namespace cleanup timed out or already clear."  
       - name: Check Code Style Compliance
         run: terraform fmt 
         working-directory: ./terraform
