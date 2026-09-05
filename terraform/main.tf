@@ -322,42 +322,42 @@ resource "aws_eks_node_group" "nodes" {
 # ==========================================
 # 3. HELM PROVIDER BLOCK
 # ==========================================
-provider "helm" {
-  kubernetes {
-    host                   = aws_eks_cluster.ci-cd-EKS.endpoint
-    cluster_ca_certificate = base64decode(aws_eks_cluster.ci-cd-EKS.certificate_authority[0].data)
-    #token                  = data.aws_eks_cluster_auth.eks.token
-    exec {
-      api_version = "client.authentication.k8s.io/v1beta1"
-      args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.ci-cd-EKS.name]
-      command     = "aws"
-    }
-  }
-}
+#provider "helm" {
+#  kubernetes {
+#    host                   = aws_eks_cluster.ci-cd-EKS.endpoint
+#    cluster_ca_certificate = base64decode(aws_eks_cluster.ci-cd-EKS.certificate_authority[0].data)
+#    #token                  = data.aws_eks_cluster_auth.eks.token
+#    exec {
+#      api_version = "client.authentication.k8s.io/v1beta1"
+#      args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.ci-cd-EKS.name]
+#      command     = "aws"
+#    }
+#  }
+#}
 # ==========================================
 # 4. ARGOCD HELM INSTALLATION FUNCTION
 # ==========================================
-resource "helm_release" "argocd" {
-  name             = "argocd"
-  repository       = "https://argoproj.github.io/argo-helm"
-  chart            = "argo-cd"
-  version          = "7.4.4" # Pinning a modern stable chart version
-  namespace        = "argocd"
-  create_namespace = true
-  timeout          = 900   # I got error context deadline exceeded so increased helm timeout limit  
+#resource "helm_release" "argocd" {
+#  name             = "argocd"
+#  repository       = "https://argoproj.github.io/argo-helm"
+#  chart            = "argo-cd"
+#  version          = "7.4.4" # Pinning a modern stable chart version
+#  namespace        = "argocd"
+#  create_namespace = true
+#  timeout          = 900   # I got error context deadline exceeded so increased helm timeout limit  
 
-  syncPolicy = {
-        automated = {
-          prune    = true
-          selfHeal = true
-        }
-      }
+  #syncPolicy = {
+  #      automated = {
+  #        prune    = true
+  #        selfHeal = true
+  #      }
+  #    }
   # Changes the ArgoCD server layout to expose a public LoadBalancer 
   # so you can easily access the UI dashboard from outside the VPC
-  set {
-    name  = "server.service.type"
-    value = "LoadBalancer"
-  }
+  #set {
+  #  name  = "server.service.type"
+  #  value = "LoadBalancer"
+  #}
   # Protects against race conditions: waits for node availability before applying
-  depends_on = [aws_eks_node_group.nodes] 
-}
+  #depends_on = [aws_eks_node_group.nodes] 
+#}
