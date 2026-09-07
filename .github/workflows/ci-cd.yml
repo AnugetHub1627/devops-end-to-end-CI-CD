@@ -180,11 +180,14 @@ jobs:
       # ==============================================================================
       - name: Deploy Prometheus and Grafana Stack via Helm
         run: |
-          # 1. Install and update Helm chart repositories (Ensure this exact URL is pasted)
+          # 1. Clear out any cached/broken community references first
+          helm repo remove prometheus-community || true
+          
+          #2. Install and update Helm chart repositories 
           helm repo add prometheus-community https://github.io
           helm repo update
           
-          # 2. Safely create the monitoring namespace if it doesn't exist
+          # 3. Safely create the monitoring namespace if it doesn't exist
           kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
           
           # 3. Upgrade or install the monitoring stack automatically
