@@ -180,7 +180,7 @@ jobs:
       # ==============================================================================
       - name: Deploy Prometheus and Grafana Stack via Helm
         run: |
-          # 1. Install and update Helm chart repositories
+          # 1. Install and update Helm chart repositories (Ensure this exact URL is pasted)
           helm repo add prometheus-community https://github.io
           helm repo update
           
@@ -192,7 +192,6 @@ jobs:
             --namespace monitoring \
             --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \
             --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false
-          
 
 # destroy-infra:
  #   name: "Infrastructure Destruction: Clean Up AWS"
