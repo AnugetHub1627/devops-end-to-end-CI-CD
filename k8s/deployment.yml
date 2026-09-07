@@ -13,6 +13,10 @@ spec:
     metadata:
       labels:
         app: flask-microservice
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"     # The port your Flask container runs on
+        prometheus.io/path: "/metrics"  # The endpoint where metrics are exposed  
     spec:
       containers:
       - name: flask-app
