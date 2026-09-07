@@ -40,9 +40,9 @@ resource "aws_subnet" "ci-cd-pub1a" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name                                       = var.subpub1a_name
+    Name                              = var.subpub1a_name
     "kubernetes.io/cluster/ci-cd-EKS" = "shared"
-    "kubernetes.io/role/elb"                   = "1"
+    "kubernetes.io/role/elb"          = "1"
   }
 }
 
@@ -53,9 +53,9 @@ resource "aws_subnet" "ci-cd-pub1b" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name                                       = var.subpub1b_name
+    Name                              = var.subpub1b_name
     "kubernetes.io/cluster/ci-cd-EKS" = "shared"
-    "kubernetes.io/role/elb"                   = "1"
+    "kubernetes.io/role/elb"          = "1"
   }
 }
 
@@ -66,9 +66,9 @@ resource "aws_subnet" "ci-cd-pvt1a" {
   availability_zone = "ap-south-1a"
 
   tags = {
-    Name                                       = var.subpvt1a_name
+    Name                              = var.subpvt1a_name
     "kubernetes.io/cluster/ci-cd-EKS" = "shared"
-    "kubernetes.io/role/internal-elb"          = "1"
+    "kubernetes.io/role/internal-elb" = "1"
   }
 }
 
@@ -78,9 +78,9 @@ resource "aws_subnet" "ci-cd-pvt1b" {
   availability_zone = "ap-south-1b"
 
   tags = {
-    Name                                       = var.subpvt1b_name
+    Name                              = var.subpvt1b_name
     "kubernetes.io/cluster/ci-cd-EKS" = "shared"
-    "kubernetes.io/role/internal-elb"          = "1"
+    "kubernetes.io/role/internal-elb" = "1"
   }
 }
 
