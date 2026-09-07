@@ -1,18 +1,12 @@
 provider "aws" {
-  region = "ap-south-1"
+  region  = "ap-south-1"
+  profile = "default"
 }
 
 terraform {
-  required_version = ">= 1.5.0" # Ensures compatibility with modern EKS configurations
-  
-  required_providers {
+  required_providers  {
     aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0" # RECOMMENDED: Locks to the major v5 series to prevent breaking pipeline changes
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.0" 
+      source = "hashicorp/aws"
     }
   }
 }
@@ -23,11 +17,10 @@ terraform {
 resource "aws_vpc" "ci-cd-vpc" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
-  enable_dns_support   = true # FIX: Mandatory for EKS control-to-data-plane registration
 
   tags = {
-    Name                                       = var.vpc_name
-    "kubernetes.io/cluster/ci-cd-EKS" = "shared"
+    Name                                      = var.vpc_name
+    "kubernetes.io/cluster/devops-eks-cluster" = "shared"
   }
 }
 
@@ -47,9 +40,9 @@ resource "aws_subnet" "ci-cd-pub1a" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name                                       = var.subpub1a_name
-    "kubernetes.io/cluster/ci-cd-EKS" = "shared"
-    "kubernetes.io/role/elb"                   = "1"
+    Name                                      = var.subpub1a_name
+    "kubernetes.io/cluster/devops-eks-cluster" = "shared"
+    "kubernetes.io/role/elb"                  = "1"
   }
 }
 
@@ -60,9 +53,9 @@ resource "aws_subnet" "ci-cd-pub1b" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name                                       = var.subpub1b_name
-    "kubernetes.io/cluster/ci-cd-EKS" = "shared"
-    "kubernetes.io/role/elb"                   = "1"
+    Name                                      = var.subpub1b_name
+    "kubernetes.io/cluster/devops-eks-cluster" = "shared"
+    "kubernetes.io/role/elb"                  = "1"
   }
 }
 
@@ -73,9 +66,9 @@ resource "aws_subnet" "ci-cd-pvt1a" {
   availability_zone = "ap-south-1a"
 
   tags = {
-    Name                                       = var.subpvt1a_name
-    "kubernetes.io/cluster/ci-cd-EKS" = "shared"
-    "kubernetes.io/role/internal-elb"          = "1"
+    Name                                      = var.subpvt1a_name
+    "kubernetes.io/cluster/devops-eks-cluster" = "shared"
+    "kubernetes.io/role/internal-elb"         = "1"
   }
 }
 
@@ -85,9 +78,9 @@ resource "aws_subnet" "ci-cd-pvt1b" {
   availability_zone = "ap-south-1b"
 
   tags = {
-    Name                                       = var.subpvt1b_name
-    "kubernetes.io/cluster/ci-cd-EKS" = "shared"
-    "kubernetes.io/role/internal-elb"          = "1"
+    Name                                      = var.subpvt1b_name
+    "kubernetes.io/cluster/devops-eks-cluster" = "shared"
+    "kubernetes.io/role/internal-elb"         = "1"
   }
 }
 
@@ -183,15 +176,14 @@ resource "aws_security_group" "ci-cd_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
-
 resource "aws_instance" "ci-cd_host" {
   ami                    = var.cicd_host_ami
-  instance_type          = var.cicd_ec2_type
+  instance_type          = var.ci-cd-ec2-type
   subnet_id              = aws_subnet.ci-cd-pub1a.id
   vpc_security_group_ids = [aws_security_group.ci-cd_sg.id]
   key_name               = var.key_name
 
-  root_block_device {
+    root_block_device {
     volume_size = 25
     volume_type = "gp3"
   }
@@ -213,23 +205,17 @@ resource "aws_instance" "ci-cd_host" {
 # ==============================================================================
 # 3. AMAZON EKS CONTROL PLANE RESOURCES
 # ==============================================================================
-
-# Native policy document data source (Safe from URL format corruption)
-data "aws_iam_policy_document" "eks_cluster_assume_role" {
-  statement {
-    actions = ["sts:AssumeRole"]
-    effect  = "Allow"
-
-    principals {
-      type        = "Service"
-      identifiers = ["eks.amazonaws.com"]
-    }
-  }
-}
-
 resource "aws_iam_role" "eks_cluster_role" {
-  name               = "devops-eks-cluster-role"
-  assume_role_policy = data.aws_iam_policy_document.eks_cluster_assume_role.json
+  name = "devops-eks-cluster-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = { Service = "eks.amazonaws.com" }
+    }]
+  })
 }
 
 resource "aws_iam_role_policy_attachment" "eks_cluster" {
@@ -256,23 +242,17 @@ resource "aws_eks_cluster" "ci-cd-EKS" {
 # ==============================================================================
 # 4. AMAZON EKS MANAGED NODE GROUP
 # ==============================================================================
-
-# Native policy document data source (Safe from URL format corruption)
-data "aws_iam_policy_document" "eks_node_assume_role" {
-  statement {
-    actions = ["sts:AssumeRole"]
-    effect  = "Allow"
-
-    principals {
-      type        = "Service"
-      identifiers = ["ec2.amazonaws.com"]
-    }
-  }
-}
-
 resource "aws_iam_role" "eks_node_role" {
-  name               = "devops-eks-node-role"
-  assume_role_policy = data.aws_iam_policy_document.eks_node_assume_role.json
+  name = "devops-eks-node-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+    }]
+  })
 }
 
 resource "aws_iam_role_policy_attachment" "eks_worker" {
@@ -309,55 +289,3 @@ resource "aws_eks_node_group" "nodes" {
     aws_iam_role_policy_attachment.eks_registry,
   ]
 }
-# ==========================================
-# 2. DYNAMIC AUTHENTICATION DATA SOURCE
-# ==========================================
-# Resolves standard authentication tokens dynamically once the cluster is live
-#data "aws_eks_cluster" "eks" {
-#  name = "ci-cd-EKS"
-#}
-#data "aws_eks_cluster_auth" "eks" {
-#  name = aws_eks_cluster.ci-cd-EKS.name
-#}
-# ==========================================
-# 3. HELM PROVIDER BLOCK
-# ==========================================
-#provider "helm" {
-#  kubernetes {
-#    host                   = aws_eks_cluster.ci-cd-EKS.endpoint
-#    cluster_ca_certificate = base64decode(aws_eks_cluster.ci-cd-EKS.certificate_authority[0].data)
-#    #token                  = data.aws_eks_cluster_auth.eks.token
-#    exec {
-#      api_version = "client.authentication.k8s.io/v1beta1"
-#      args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.ci-cd-EKS.name]
-#      command     = "aws"
-#    }
-#  }
-#}
-# ==========================================
-# 4. ARGOCD HELM INSTALLATION FUNCTION
-# ==========================================
-#resource "helm_release" "argocd" {
-#  name             = "argocd"
-#  repository       = "https://argoproj.github.io/argo-helm"
-#  chart            = "argo-cd"
-#  version          = "7.4.4" # Pinning a modern stable chart version
-#  namespace        = "argocd"
-#  create_namespace = true
-#  timeout          = 900   # I got error context deadline exceeded so increased helm timeout limit  
-
-  #syncPolicy = {
-  #      automated = {
-  #        prune    = true
-  #        selfHeal = true
-  #      }
-  #    }
-  # Changes the ArgoCD server layout to expose a public LoadBalancer 
-  # so you can easily access the UI dashboard from outside the VPC
-  #set {
-  #  name  = "server.service.type"
-  #  value = "LoadBalancer"
-  #}
-  # Protects against race conditions: waits for node availability before applying
-  #depends_on = [aws_eks_node_group.nodes] 
-#}
