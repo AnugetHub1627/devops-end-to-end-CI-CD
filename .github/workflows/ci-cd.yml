@@ -175,6 +175,24 @@ jobs:
         run: |
           kubectl apply -f k8s/deployment.yml
           kubectl apply -f k8s/service.yml
+      # ==============================================================================
+      # ADDED: AUTOMATED PROMETHEUS & GRAFANA MONITORING DEPLOYMENT
+      # ==============================================================================
+      - name: Deploy Prometheus and Grafana Stack via Helm
+        run: |
+          # 1. Install and update Helm chart repositories
+          helm repo add prometheus-community https://github.io
+          helm repo update
+          
+          # 2. Safely create the monitoring namespace if it doesn't exist
+          kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+          
+          # 3. Upgrade or install the monitoring stack automatically
+          helm upgrade --install monitoring-stack prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \
+            --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false
+          
 
 # destroy-infra:
  #   name: "Infrastructure Destruction: Clean Up AWS"
