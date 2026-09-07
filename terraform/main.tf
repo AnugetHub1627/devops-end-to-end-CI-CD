@@ -4,7 +4,7 @@ provider "aws" {
 }
 
 terraform {
-  required_providers  {
+  required_providers {
     aws = {
       source = "hashicorp/aws"
     }
@@ -19,7 +19,7 @@ resource "aws_vpc" "ci-cd-vpc" {
   enable_dns_hostnames = true
 
   tags = {
-    Name                                      = var.vpc_name
+    Name                                       = var.vpc_name
     "kubernetes.io/cluster/devops-eks-cluster" = "shared"
   }
 }
@@ -40,9 +40,9 @@ resource "aws_subnet" "ci-cd-pub1a" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name                                      = var.subpub1a_name
+    Name                                       = var.subpub1a_name
     "kubernetes.io/cluster/devops-eks-cluster" = "shared"
-    "kubernetes.io/role/elb"                  = "1"
+    "kubernetes.io/role/elb"                   = "1"
   }
 }
 
@@ -53,9 +53,9 @@ resource "aws_subnet" "ci-cd-pub1b" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name                                      = var.subpub1b_name
+    Name                                       = var.subpub1b_name
     "kubernetes.io/cluster/devops-eks-cluster" = "shared"
-    "kubernetes.io/role/elb"                  = "1"
+    "kubernetes.io/role/elb"                   = "1"
   }
 }
 
@@ -66,9 +66,9 @@ resource "aws_subnet" "ci-cd-pvt1a" {
   availability_zone = "ap-south-1a"
 
   tags = {
-    Name                                      = var.subpvt1a_name
+    Name                                       = var.subpvt1a_name
     "kubernetes.io/cluster/devops-eks-cluster" = "shared"
-    "kubernetes.io/role/internal-elb"         = "1"
+    "kubernetes.io/role/internal-elb"          = "1"
   }
 }
 
@@ -78,9 +78,9 @@ resource "aws_subnet" "ci-cd-pvt1b" {
   availability_zone = "ap-south-1b"
 
   tags = {
-    Name                                      = var.subpvt1b_name
+    Name                                       = var.subpvt1b_name
     "kubernetes.io/cluster/devops-eks-cluster" = "shared"
-    "kubernetes.io/role/internal-elb"         = "1"
+    "kubernetes.io/role/internal-elb"          = "1"
   }
 }
 
@@ -176,6 +176,7 @@ resource "aws_security_group" "ci-cd_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+
 resource "aws_instance" "ci-cd_host" {
   ami                    = var.cicd_host_ami
   instance_type          = var.ci-cd-ec2-type
@@ -183,7 +184,7 @@ resource "aws_instance" "ci-cd_host" {
   vpc_security_group_ids = [aws_security_group.ci-cd_sg.id]
   key_name               = var.key_name
 
-    root_block_device {
+  root_block_device {
     volume_size = 25
     volume_type = "gp3"
   }
