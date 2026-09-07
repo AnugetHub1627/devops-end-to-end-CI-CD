@@ -1,4 +1,4 @@
-name: CI/CD Devops Pipeline
+name: CI/CD Devops Pipeline...
 
 on:
   push:
@@ -7,7 +7,6 @@ on:
     paths:
       - 'app/**'
   workflow_dispatch:
-
 # Mandatory at the workflow root level to allow safe OIDC authentication with AWS
 permissions:
   id-token: write
@@ -29,24 +28,17 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
-
       - name: Install Specific Terraform CLI Version
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.8.0
-          terraform_wrapper: false
+
       - name: Initialize Backend Storage Workspaces
         run: terraform init   
         working-directory: ./terraform
-      #- name: Purge Corrupted ArgoCD Leftovers
-      #  run: |
-          # 1. Connect the GitHub Actions cloud runner to your cluster
-          #aws eks update-kubeconfig --region ap-south-1 --name ci-cd-EKS || echo "Cluster doesn't exist yet, skipping cleanup."
         
-          # 2. Force delete the corrupted namespace and avoid hanging
-          #kubectl delete namespace argocd --ignore-not-found=true --timeout=60s || echo "Namespace cleanup timed out or already clear."  
       - name: Check Code Style Compliance
-        run: terraform fmt 
+        run: terraform fmt -check
         working-directory: ./terraform
 
       - name: Validate System Configuration Files
@@ -56,20 +48,6 @@ jobs:
       - name: Execute Live Deployment Code
         run: terraform apply -auto-approve -input=false
         working-directory: ./terraform
-
-      - name: Post-Failure Cluster Deep Dive
-        if: failure()  # Will only execute if the step above times out again
-        run: |
-          # 1. Update runner kubeconfig
-          aws eks update-kubeconfig --region ap-south-1 --name ci-cd-EKS
-        
-          echo "=== 1. VERIFY NODE REGISTRATION ==="
-          kubectl get nodes --show-labels || echo "Nodes are completely unreachable."  
-          echo "=== 2. INSPECT POD STUCK STATUS ==="
-          kubectl get pods -n argocd -o wide || echo "No pods deployed."
-        
-          echo "=== 3. COLLECT DETAILED SCHEDULING FAILURE EVENTS ==="
-          kubectl get events -n argocd --sort-by='.metadata.creationTimestamp' | tail -n 25
       
       - name: Capture Infrastructure Outputs
         id: save-outputs # FIXED: Aligned step ID to match the outputs block declaration above
@@ -78,10 +56,10 @@ jobs:
           EC2_IP=$(terraform output -raw sonarqube_server_ip)
           echo "sonar_host=http://$EC2_IP:9000" >> $GITHUB_OUTPUT
         working-directory: ./terraform
-
       - name: Wait for SonarQube Server to boot
-        run: sleep 90  
+        run: sleep 90  #   
   
+        
   test-and-scan:
     name: "Continuous Integration: Test & Code Scan"
     needs: provision-infra # FIXED: Correctly targets the completed infrastructure job node block above
@@ -143,48 +121,63 @@ jobs:
 
       - name: Update Kubernetes Image Tag
         run: |
-          # Outer double quotes allow GitHub Secrets and variables to evaluate seamlessly
-          sed -i "s|image: .*|image: ${{ secrets.DOCKERHUB_USERNAME }}/flask-devops-app:${{ github.sha }}|g" k8s/deployment.yml
-            
-          # Use standard GitHub bot identity
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@://github.com"
+          sed -i 's|image: .*|image: '${{ secrets.DOCKERHUB_USERNAME }}'/flask-devops-app:'${{ github.sha }}'|g' k8s/deployment.yml
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
           git add k8s/deployment.yml
-            
-          # Commits only if a real file change occurs to prevent workflow run failures
-          git diff-index --quiet HEAD || git commit -m "Bump image version to ${{ github.sha }} [skip ci]"
-          git push origin HEAD
-          
-      
+          git commit -m "Bump image version to ${{ github.sha }} [skip ci]"
+          git push
 
-  
-
-  destroy-infra:
-    name: "Infrastructure Destruction: Clean Up AWS"
+  deploy-to-eks:
+    name: "Continuous Deployment: Provision onto EKS Cluster"
+    needs: update-manifest
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code Architecture
+      - name: Checkout Code
         uses: actions/checkout@v4
- 
-      - name: Authenticate with AWS via Access Keys
+
+      - name: Configure AWS Credentials (Access Key and secret key)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
-      - name: Install Specific Terraform CLI Version
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.8.0
+      - name: Refresh Local Kubeconfig
+        run: |
+          aws eks update-kubeconfig --region ap-south-1 --name ci-cd-EKS
 
-      - name: Initialize Backend Storage Workspaces
-        run: terraform init   
-        working-directory: ./terraform
+      - name: Deploy Manifests to AWS EKS Cluster
+        run: |
+          kubectl apply -f k8s/deployment.yml
+          kubectl apply -f k8s/service.yml
 
-      - name: Destroy All AWS Resources
-        run: terraform destroy -auto-approve
-        working-directory: ./terraform
+# destroy-infra:
+ #   name: "Infrastructure Destruction: Clean Up AWS"
+ #   runs-on: ubuntu-latest
+ #   steps:
+ #     - name: Checkout Code Architecture
+ #       uses: actions/checkout@v4
+ #
+ #    - name: Authenticate with AWS via Access Keys
+ #       uses: aws-actions/configure-aws-credentials@v4
+ #       with:
+ #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+ #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+ #         aws-region: ap-south-1
+
+#      - name: Install Specific Terraform CLI Version
+#        uses: hashicorp/setup-terraform@v3
+#        with:
+#          terraform_version: 1.8.0
+
+#      - name: Initialize Backend Storage Workspaces
+#        run: terraform init   
+#        working-directory: ./terraform
+
+#      - name: Destroy All AWS Resources
+#        run: terraform destroy -auto-approve
+#        working-directory: ./terraform
 
           
 
