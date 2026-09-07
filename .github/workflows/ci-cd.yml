@@ -37,9 +37,23 @@ jobs:
         run: terraform init   
         working-directory: ./terraform
         
-      - name: Check Code Style Compliance
-        run: terraform fmt -check
-        working-directory: ./terraform
+      - name: Auto-Format Code and Fix Line Endings
+        run: |
+          # 1. Format all configuration files and correct bad line endings
+          terraform fmt
+          
+          # 2. Check if anything was modified
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Formatting issues detected! Automatically committing fixes..."
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@://github.com"
+            git add .
+            git commit -m "style: automated terraform fmt & line-ending fixes [skip ci]"
+            git push
+          else
+            echo "Code style is perfectly clean!"
+          fi
+
 
       - name: Validate System Configuration Files
         run: terraform validate
