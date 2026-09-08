@@ -28,106 +28,56 @@ system health and establishing proactive alerting loops for application reliabil
        ├── Provisions VPC networks, Docker Host, and EKS Cluster.
        └── Saves the persistent data back into your secure S3 backend bucket.
 
-Phase 1: Infrastructure Provisioning
-  I utilized Terraform to provision a high-availability AWS network topology, including a custom VPC, segmented public 
-and private subnets across multiple Availability Zones, and an internet gateway for public edge routing. Within this 
-network, I deployed an Amazon EKS control plane alongside managed node groups, isolating the worker node architecture 
-inside private subnets to enforce enterprise security boundaries.
+Step-by-Step Implementation Blueprint :  
 
-phase 2 : Dockerize application and code quality
-  I deployed a dedicated Ubuntu EC2 compute instance within the VPC to serve as our centralized Docker build-host and CI
-workstation. I provisioned SonarQube directly onto this host to establish an immediate static application security testing
-(SAST) loop, ensuring all repository source code adheres to quality gates and vulnerability standards immediately upon 
-cloning the project repo.
+Phase1: High-Availability Infrastructure Provisioning (Terraform)
+engineered a highly available network topology inside AWS using Terraform to ensure repeatable deployments:
+Network Isolation: A custom Virtual Private Cloud (VPC) segmented into both public and private subnets across multiple Availability Zones (AZs).EKS Architecture: The Amazon 
+EKS control plane is configured to manage worker node groups locked down inside private subnets, shielding production workloads from direct public internet exposure.
 
-phase 3 : Container Engineering & Ingress Configuration 
-  After cloning the source code onto the build-host, I compiled the application into an optimized Docker image using a 
-multi-stage Dockerfile definition. To validate the container runtime locally before EKS orchestration, I launched the 
-container on the host machine, mapping external ingress port 5000 directly to the internal application process listening 
-globally on 0.0.0.0:5000.
-  To verify edge-to-container routing, I altered the instance’s stateful firewall (AWS Security Groups) to authorize ingress TCP traffic on port 5000.
-By bypassing browser-side HTTPS enforcement and executing a raw HTTP request against the host's public compute IP, I successfully loaded the live 
-microservice in a web browser, confirming zero network degradation from the internet edge down to the application container.
+Phase 2: Compute Workstation & Security GatewaysCI Workstation:
+Terraform stands up a dedicated Ubuntu EC2 instance within the VPC to serve as a centralized local build host. 
+Static Code Analysis: SonarQube is installed on this host to capture immediate code vulnerabilities, scanning repository files directly against automated enterprise security
+standards.
 
-phase 4 : deploy application as microservices on EKS cluster using Gthub actions
-   Finally I run CI-CD pipeline successfully. I checked pods are running in EKS cluster are working fine or not by using power shell in my computer.
-I have already installed AWS CLI. so I fetched cluster configurations by using command:
-     
-       aws eks update-kubeconfig --region ap-south-1 --name ci-cd-EKS
-  
+Phase 3: Container Engineering & Edge Routing. 
+Optimized Dockerization: The Flask application (app.py) is compiled using a multi-stage Dockerfile with a minimal python:3.11-slim base image to trim down file size and 
+reduce attack vectors.
+Sanity Testing: Containers are validated on the build host by binding internal application runtime processes (0.0.0.0:5000) to external host interfaces and tweaking stateful 
+AWS Security Groups to safely accept public HTTP traffic.
 
-ERRORS : 
-1. I tried to bind AWS account with GitHub actions using OIDC (Open ID Connect) method. in this method there should be created AWS role to allowed GitHub action in AWS but its failed.
- coz:
-Your OpenID Connect (OIDC) setup failed because of a classic infrastructure paradox called a chicken-and-egg problem.
-When your GitHub Action ran with role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}, it tried to log into AWS using an IAM Role that did not exist yet because the Terraform files meant to create that role were sitting unexecuted inside that very same pipeline.  
-SOlved by : 
-I changed OIDC setup and used old access key and secret method. i created repository secrets for each AWS access key and secret key. Now this issue resolved.
+Phase 4: Cluster Orchestration via GitHub ActionsAutomated Workflow: 
+Upon a code check-in to the main branch, the GitHub Action workflow spins up an ephemeral virtual machine, pulls down deployment manifests, updates Kubernetes cluster context 
+via AWS CLI (aws eks update-kubeconfig), and commands the EKS cluster to orchestrate stateless container.
 
-2. terraform configuration failed with exit code 1.
- coz :
-I put profile = default as usual but When we specify profile = "default", we are forcing Terraform to look for a physical local AWS credentials file hidden inside a user directory (like ~/.aws/credentials).On your local computer: This works because you ran aws configure in your terminal. 
-On GitHub Actions: GitHub uses isolated cloud servers that do not have a default user profile configuration file. When Terraform looks for the profile named "default", it searches the empty server files, finds nothing, and crashes with Exit Code 1.
-solved by :
-just deleted profile = "default" line
+ERRORS: 
 
-3. in terraform init and apply blocks in GitHub actions still failed with exit code1 
-coz: I had my terraform configuration files in terraform folder GitHub actions not getting that files so its failed with exit code 1.
-solved by :
-added line in terraform config blocks in GitHub action
-working-directory: ./terraform
+1.OIDC Authentication Failure | Chicken-and-egg paradox: The GitHub workflow tried assuming an IAM Role that hadn't been built yet by the unexecuted Terraform scripts. 
+| Refactored initial handshake using securely stored AWS Access Key ID and Secret Access Key repository secrets to bootstrap the system.|
 
-4. again terraform failed to create infra failed with exit code 1.
-coz : this is another chicken-and-egg infrastructure problem. 
-I was trying to use Terraform to build everything from scratch, but Terraform requires an already existing S3 bucket to store its state file before it can even run terraform init. 
-solved by :
-AWS cosole --> created bucket with exact name i used in terraform backend block
+2.Terraform Local Profile Crash (Exit Code 1) | Hardcoded profile = "default" forced Terraform to hunt for a physical file path (~/.aws/credentials) absent on cloud-hosted
+runners. | Stripped the local profile parameter from the provider block, allowing environmental variables to feed configuration naturally. |  
 
-5. terraform configuration failed with exit code 3 again.
-coz :
-while creating IAM role I wrote it in JSON format so GitHub Actions runner when a text replacement, a global regex formatting cleanup, or an automated linter step accidentally misinterprets the word Service or the string eks.amazonaws.com as a web URL. The runner or an internal script attempted to auto-format it by forcing a web protocol prefix (://) inside it.
-solved by :
-To permanently prevent GitHub Actions from corrupting your raw JSON strings, the absolute best practice in Terraform is to replace the jsonencode blocks with an idiomatic aws_iam_policy_document data source. 
-By defining the trust policy as a native Terraform block instead of a raw JSON string, the formatting engine cannot corrupt the text.
+3.Missing Terraform Working Directory | GitHub Action runners search root folders; configuration files were nested inside a isolated /terraform directory.
+| Configured step definitions explicitly utilizing the working-directory: ./terraform flag. |
 
-6. terraform created infra successfuly but its stucked at code analysis with SonarQube.
-coz :
-I was using the official SonarSource/sonarqube-scan-action step in my ci-cd.yml file, but I haven't given it any credentials or told it where my SonarQube server is located. Because my SonarQube application is running inside the EC2 instance you just built via Terraform, my public GitHub Actions runner has no idea what its IP address is or how to talk to it. 
+4.Backend Storage Dependency Failure | Chicken-and-egg paradox: Terraform required an S3 bucket to maintain state history before it could even run its own init commands. 
+| Manually instantiated the core S3 tracking bucket directly inside the AWS Console beforehand to anchor the initialization stage. |
 
-7. now again failing token on SonarQube.
-coz : 
-pipeline is still failing with ERROR: Not authorized. I checked the user token. This means my SonarQube server is up and listening at 13.4.1.4007, but it explicitly rejected the word "admin" as an analysis token. I was using default userID and password that is admin admin. 
-This happens because modern versions of SonarQube completely disable basic authentication and placeholder tokens by default for API security. You cannot use a plain password string like "admin" to pass a code scan from an external GitHub runner.
-solved by :
-a. Generate a Genuine Analysis Token 
-  -  the Security tab is missing from my profile, it is typically because my SonarQube instance relies on an external Single Sign-On (SSO) provider (like Okta, Azure AD/Entra ID, GitHub, or GitLab) which delegates token creation, or user account lacks the necessary Execute Analysis or global permissions.
-b. so I prefer 2nd solution for this time i skipped code scanning by SonarQube totally by commenting scanning block in ci-cd.yml file
+5.JSON String Corruption (Exit Code 3) | Runner linters and regex engines misidentified raw IAM JSON strings (like ://amazonaws.com) as web URLs and forced formatting
+corruptions (://). | Migrated away from risky jsonencode text structures to standard native aws_iam_policy_document data sources. | 
 
-8. now i commented scanning code and jump next step docker image building. here I got error Dockerfile is not found.
-coz : 
-by mistakenly I put context: ./app but my Dockerfile is not in any subfolder.
-solved by :
-I just write context: . in docker build block
+6.Docker Build Missing Context | Pipeline configurations set build execution limits to ./app, but the project Dockerfile resided natively at the root folder level.
+| Pointed the docker configuration back to universal workspace boundaries with context: .. |
 
-
-9. failed deployment stage for AWS credentials 
-coz : 
-I put old OIDC AWS role for access AWS but it was not working so already i shifted to old access key and secret method but here i didn't change with block
-solved by :
-adding with block 
-with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-
-
-name: CI/CD Devops Pipeline...
-
-on:
-  push:
-    branches:
-      - main 
-  workflow_dispatch: # <-- Add this line to create a manual trigger button
+[Local Dev/Git Push] ➔ [GitHub Repo] ➔ triggers ➔ [GitHub Actions Runner]
+                                                        │
+         ┌──────────────────────────────────────────────┴──────────────────────────────────────────────┐
+         ▼ (Infrastructure Phase)                                                                       ▼ (Application Phase)
+[Terraform Apply via S3 Backend]                                                                [Docker Multi-Stage Build]
+         │                                                                                             │
+         ▼                                                                                             ▼
+[AWS VPC: EKS Private Nodes + EC2 CI Host] ◄─────────────────────────────────────────────── [Push & Deploy Pods to EKS]
 
 
 
