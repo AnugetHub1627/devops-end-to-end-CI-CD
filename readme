@@ -105,4 +105,69 @@ would only accept loopback traffic from inside its own local system. Binding to 
 or an external AWS target group) to communicate with the app. 
 port=5000: This instructs the application process to listen on TCP port 5000.
 
+Terraform explaination :
+The infrastructure is built within a secure Virtual Private Cloud (VPC) featuring two public and two private subnets distributed across two Availability Zones for high 
+availability. A Docker host and SonarQube for code quality assurance are provisioned on an EC2 instance within the public subnet, while EKS worker nodes reside in private 
+subnets for enhanced security with outbound traffic routed through a NAT Gateway.
 
+Question 1: "Why did you place the EKS worker nodes in the private subnet, and how do they pull Docker images or updates if they don’t have a public IP?"
+I placed the EKS worker nodes in the private subnet for strict security, ensuring they are completely hidden from direct internet threats. To allow them to pull Docker 
+images or install system updates, I deployed a NAT Gateway in the public subnet. The private route table is configured to route all outbound traffic through this NAT Gateway,
+allowing safe one-way communication to the internet while blocking any outside entity from initiating a connection directly to our worker nodes.
+
+Question 2: "Your Security Group opens ports 22, 5000, and 9000 to 0.0.0.0/0 (the entire internet). In a real production environment, how would you make this more secure?"
+To harden this setup for production, I would restrict 0.0.0.0/0 access. For Port 22 (SSH), I would only allow our company’s corporate VPN IP or use AWS Systems Manager 
+Session Manager instead of exposing SSH to the world. For Port 9000 (SonarQube), I would limit access to our specific developer team IP range or place it behind an internal 
+Load Balancer. For Port 5000, instead of exposing the port directly on the host, I would route traffic to it strictly through an AWS Application Load Balancer.
+
+Question 3: "You mentioned using 2 public and 2 private subnets across 2 different Availability Zones. What happens to your EKS applications if one AWS Availability Zone 
+goes down completely?"
+Because I built this with high availability in mind, if one Availability Zone experiences an outage, our application will remain operational. Amazon EKS will automatically 
+detect that the nodes in the affected zone are unhealthy. Since the EKS Node Group spans across two zones, Kubernetes will immediately spin up replacement microservice 
+containers on the surviving worker nodes in the second, healthy Availability Zone, ensuring zero or minimal downtime for our users.
+
+DockerFile explaination :
+In this Dockerfile, I focus on two main things: keeping the image lightweight and making the build fast using Docker caching. 
+First, I used python:3.11-slim as the base image instead of the full Python image to keep our container size small and secure. 
+Second, I set the working directory to /app and copied only the requirements.txt file  I ran pip install with --no-cache-dir to install dependencies without saving temporary 
+junk files.
+Third, I copied the rest of the application code. By doing this after installing dependencies, I leverage Docker layer caching. If our code changes but dependencies stay 
+the same, Docker skips the slow installation step, making our CI/CD builds super fast. 
+Finally, I exposed port 5000 for network communication and used the CMD instruction to run the Python application when the container starts.
+
+Question 1: "You have EXPOSE 5000 in your Dockerfile. Does this automatically open port 5000 to the public internet or your VPC network?"
+No, EXPOSE 5000 does not open the port to the public internet or the VPC. It is mostly documentational. It tells Docker and other engineers which port the application 
+intends to listen on inside the container. To actually make it accessible outside the host, I still need to map the port when running the container (using -p 5000:5000) and 
+ensure my AWS Security Groups allow traffic on that port.
+
+Question 2: "When you build this Docker image using a CI/CD pipeline, where do you store it so that your EKS worker nodes in the private subnet can pull and run it?"
+"I push the built Docker image to a repository on Docker Hub. Since my EKS worker nodes are sitting in a private subnet with no public IP, they route their outbound traffic 
+through our NAT Gateway to reach the public internet and pull the image from Docker Hub. If the repository is private, I configure a Kubernetes ImagePullSecret containing 
+my Docker Hub credentials so the worker nodes can authenticate and pull the image securely."
+
+Question 3: "If your Python Flask app inside this container needs to connect to a database hosted elsewhere in your VPC,what network configuration determines if it can reach it?"
+The connection depends on two things: AWS Security Groups and Routing Tables. First, the database’s Security Group must have an inbound rule allowing traffic from the EKS 
+worker nodes' Security Group on the database port. Second, since both are inside my secure VPC, the internal route tables will automatically handle the private IP routing 
+between the subnets, keeping the database traffic completely private and secure."
+
+Docker-Compose.yml explaination :
+"This Docker Compose file sets up a complete, self-hosted code quality platform. Instead of using SonarQube's default temporary database, I paired it with a dedicated 
+PostgreSQL database service for data persistence.Inside the file, I defined two services: sonarqube (the web interface/application engine) and db (the database backend).
+To ensure data is never lost when containers restart or upgrade, I configured Docker Volumes to safely store SonarQube's configuration, logs, and database tables on the 
+host machine.
+From a networking perspective, I isolated both containers inside a private, custom bridge network called sonar-net. This allows them to communicate securely using their 
+service names. Finally, I exposed port 9000 on the host so our development team or CI/CD pipelines can access the SonarQube web dashboard."
+
+Question 1: "Look at the SONAR_JDBC_URL. You didn't use an IP address; you used jdbc:postgresql://db:5432/sonar. How does SonarQube resolve the word 'db' to reach the 
+database?"
+"Because both services are attached to the same custom bridge network (sonar-net), Docker's built-in embedded DNS server automatically handles name resolution. It resolves 
+the service name db directly to the private container IP assigned to the PostgreSQL database. This acts just like a local DNS server in a traditional network enterprise."
+
+Question 2: "Why is port 9000 mapped under the sonarqube service, but the database service (db) has no ports mapped at all?"
+"We only map port 9000 for SonarQube because users and CI/CD tools need to access the web dashboard from outside the Docker host. The database, however, does not need to be 
+exposed to the public internet or external networks. Since both containers share the internal sonar-net network, SonarQube can talk to Postgres on port 5432 completely 
+internally, keeping our database isolated and secure."
+
+Question 3: "What is the purpose of the depends_on flag under the sonarqube service?"
+"depends_on controls the startup order of the containers. It tells Docker Compose that the database container must be created and started before the SonarQube container boots
+up. This prevents SonarQube from crashing on startup due to the database connection not being available yet."
