@@ -20,7 +20,7 @@ resource "aws_vpc" "ci-cd-vpc" {
 
   tags = {
     Name                                       = var.vpc_name
-    "kubernetes.io/cluster/devops-eks-cluster" = "shared"
+    "kubernetes.io/cluster/ci-cd-EKS" = "shared"
   }
 }
 
