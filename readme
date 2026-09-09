@@ -80,5 +80,29 @@ corruptions (://). | Migrated away from risky jsonencode text structures to stan
 [AWS VPC: EKS Private Nodes + EC2 CI Host] ◄─────────────────────────────────────────────── [Push & Deploy Pods to EKS]
 
 
+APP.PY : This script is a foundational Python Flask API. While simple, it illustrates a standard microservice architecture. From a DevOps perspective, it establishes an 
+explicit listening configuration on port 5000 across all interfaces via 0.0.0.0, making it fully ready to receive routed traffic inside a Docker container or an AWS EC2 
+instance. The JSON response it generates acts as a reliable health check endpoint for monitoring tools and cloud load balancers.
+a. from flask import Flask, jsonify
+Flask is the core class used to initialize the web application framework.
+jsonify is a helper function that converts Python dictionaries or variables into a JSON-formatted response with the correct HTTP header.
+b. app = Flask(__name__)
+This creates an instance of the Flask class. The __name__ argument tells Flask where to look for resources like templates and static files. In single-module applications 
+like this, it acts as a unique identifier for the app package.
+@app.route('/')
+def home():
+    return jsonify(status="healthy", message="Flask Devops App Operational")
+@app.route('/') is a Python decorator that binds the root URL path (/) to the home() function. When a user or load balancer hits the server's IP at the root level, 
+this function triggers.
+The home() function returns a JSON payload indicating that the application is operational.
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
+if __name__ == '__main__': ensures that the development server only boots up if the script is run directly (e.g., python app.py) rather than imported as a module by 
+another script.
+app.run(...) starts the built-in development web server.
+host='0.0.0.0': This tells the Flask framework to bind to all available network interfaces on the host operating system. If it were left as default (127.0.0.1), the app 
+would only accept loopback traffic from inside its own local system. Binding to 0.0.0.0 allows outside entities (such as your host computer accessing a Docker container, 
+or an external AWS target group) to communicate with the app. 
+port=5000: This instructs the application process to listen on TCP port 5000.
 
 
