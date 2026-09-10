@@ -73,7 +73,7 @@ jobs:
         working-directory: ./terraform
       
       - name: Capture Infrastructure Outputs
-        id: save-outputs # FIXED: Aligned step ID to match the outputs block declaration above
+        id: save-outputs # Aligned step ID to match the outputs block declaration above
         run: |
           # Fetch the public IP directly from your output.tf mapping
           EC2_IP=$(terraform output -raw sonarqube_server_ip)
@@ -85,7 +85,7 @@ jobs:
         
   test-and-scan:
     name: "Continuous Integration: Test & Code Scan"
-    needs: provision-infra # FIXED: Correctly targets the completed infrastructure job node block above
+    needs: provision-infra  # Correctly targets the completed infrastructure job node block above
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
