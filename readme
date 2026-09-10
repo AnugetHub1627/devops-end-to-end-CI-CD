@@ -192,3 +192,51 @@ Docker Hub, updates our GitOps Kubernetes manifests, and finally deploys the app
        │
        ▼
  5. deploy-to-eks    (AWS Kubeconfig update -> kubectl apply to EKS)
+
+Q: Why did you configure permissions: id-token: write at the root of the workflow?
+Answer: "This is a security best practice for cloud authentication. It enables OIDC(OpenID Connect). Instead of storing long-lived, high-risk AWS Access Keys inside GitHub 
+Secrets, GitHub Actions exchanges a short-lived OIDC token with AWS IAM. AWS validates the token identity and issues temporary security credentials that expire automatically
+when the job finishes."
+
+Q: In deploy-to-eks, how does GitHub runner actually gain authority to communicate with your EKS cluster?Answer: "First, the runner uses AWS credentials to run aws eks 
+update-kubeconfig, which generates a local configuration file containing the cluster's endpoint and access tokens. Then, when kubectl apply runs, it uses that kubeconfig 
+context to authenticate against the EKS control plane. For this to succeed, the IAM role assumed by the runner must be mapped inside the EKS cluster's authentication system 
+(like aws-auth ConfigMap or EKS Access Entries)."
+
+Q: I noticed an automated step that runs terraform fmt and then pushes code back to the repository. Why did you design it this way, and what risk does it introduce?
+Answer:
+The Benefit: "It enforces strict stylistic consistency across the team without relying on developers to remember to format code locally.
+"The Risk & Solution: "The risk is causing an infinite pipeline loop. If a bot commits code, it could trigger the pipeline again. I mitigated this by adding [skip ci] to 
+the commit message, telling GitHub Actions to ignore this specific automated commit."
+
+Q: How are you managing the Terraform State file (.tfstate) in this pipeline?
+Answer: "In a team pipeline, state files must never be stored locally or pushed to Git—which is why my workflow explicitly appends .tfstate to the .gitignore during the 
+format step. In production, I configure a remote backend (like an AWS S3 bucket with DynamoDB state locking) inside the terraform block. This ensures that when the runner 
+executes terraform init, it safely pulls the shared, locked state from the cloud."
+
+Q: Your pipeline has a job called update-manifest. Why update a YAML file in Git instead of just running kubectl set image directly on the cluster?Answer: "This is the core 
+principle of GitOps. Your Git repository must always be the single source of truth for the cluster's actual state. If I used kubectl set image, the cluster would change, 
+but the code in Git would remain outdated. By using sed to update k8s/deployment.yml and committing it back to Git, we maintain an immutable audit trail. Anyone looking at 
+the repository knows exactly what container version is live."
+
+Q: Why did you pass ${{ github.sha }} to your Docker tags instead of using a tag like :latest or a semantic version (e.g., :v1.0.0)?Answer: ":latest is a massive anti-pattern
+in production because it is mutable—you never truly know what code it points to, making rollbacks impossible. Semantic versioning is great for releases, but for continuous 
+deployment, using the Git Commit SHA ensures absolute immutability. Every single built image links perfectly back to the exact line of code that triggered it."
+
+Q: How does the test-and-scan job get the URL for SonarQube if the infrastructure is built dynamically in the previous job?Answer: "I leveraged GitHub Actions Job Outputs. 
+In the provision-infra job, after running terraform apply, I use a step with an ID to capture the raw Terraform output variable (sonarqube_server_ip). I append that value 
+to $GITHUB_OUTPUT. The job itself maps that step output to a job-level output called sonar_url. Because test-and-scan specifies needs: provision-infra, it can securely read 
+that dynamic URL context using ${{ needs.provision-infra.outputs.sonar_url }}."
+
+4. Architectural Critique
+Q: If you could improve or optimize this workflow right now, what changes would you make?Tip: Interviewers love this because it proves you see the flaws in your own work and 
+know how to progress.
+Answer: "There are three optimizations I would implement next 
+Add Security Scanning for IaC: I would introduce a step using trivy or checkov right after terraform validate to scan my Terraform files for security misconfigurations 
+before running an apply. 
+Introduce Caching: The Python dependency steps download packages from scratch every single run. I would implement actions/cache for the pip directory to slice off runner 
+minutes.
+Decouple the Destroy Job: Having a destroy-infra job in a main deployment workflow is dangerous. While it requires manual triggering, a simple human misconfiguration could 
+trigger a production teardown. I would isolate infrastructure destruction into a completely separate, restricted workflow file."
+
+
