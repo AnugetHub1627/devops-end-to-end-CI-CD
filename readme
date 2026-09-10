@@ -171,3 +171,24 @@ internally, keeping our database isolated and secure."
 Question 3: "What is the purpose of the depends_on flag under the sonarqube service?"
 "depends_on controls the startup order of the containers. It tells Docker Compose that the database container must be created and started before the SonarQube container boots
 up. This prevents SonarQube from crashing on startup due to the database connection not being available yet."
+
+.github/workflow/ci-cd.yml file explaination :
+designed and implemented an automated end-to-end GitOps CI/CD pipeline using GitHub Actions for a Python Flask application. It triggers automatically when changes hit the 
+application folder. The pipeline dynamically provisions an AWS environment using Terraform, validates and runs Python unit tests, builds a Docker container, pushes it to 
+Docker Hub, updates our GitOps Kubernetes manifests, and finally deploys the application to an Amazon EKS cluster.
+
+[Push to app/**] 
+       ▼
+ 1. provision-infra  (Terraform Apply on AWS + dynamic SonarQube IP export)
+       │
+       ▼
+ 2. test-and-scan    (Python Pytest unit checks)
+       │
+       ▼
+ 3. build-and-push   (Docker Image Build -> Tagged with Commit SHA -> Registry)
+       │
+       ▼
+ 4. update-manifest  (GitOps: Automated 'sed' updates k8s deployment tag)
+       │
+       ▼
+ 5. deploy-to-eks    (AWS Kubeconfig update -> kubectl apply to EKS)
